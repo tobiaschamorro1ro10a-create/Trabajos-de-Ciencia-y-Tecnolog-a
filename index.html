@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full font-sans antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord - Frontend Rediseñado con Accesibilidad Web (WCAG 2.0 AA)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        discord: {
+                            bg: '#313338',
+                            sidebar: '#2b2d31',
+                            servers: '#1e1f22',
+                            channelHover: '#35373c',
+                            chatInput: '#383a40',
+                            text: '#dbdee1',
+                            textMuted: '#949ba4',
+                            blurple: '#5865f2',
+                            green: '#23a55a',
+                            yellow: '#f0b232',
+                            red: '#f23f43'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Estilos universales para la navegación por teclado y accesibilidad */
+        :focus-visible {
+            outline: 3px solid #f0b232 !important;
+            outline-offset: 2px !important;
+            z-index: 50;
+        }
+
+        /* Tamaños de Fuente Dinámicos para Accesibilidad */
+        body.font-large {
+            font-size: 1.125rem !important; /* 18px */
+        }
+        body.font-large .text-xs { font-size: 0.875rem !important; }
+        body.font-large .text-sm { font-size: 1rem !important; }
+        
+        body.font-xlarge {
+            font-size: 1.25rem !important; /* 20px */
+        }
+        body.font-xlarge .text-xs { font-size: 1rem !important; }
+        body.font-xlarge .text-sm { font-size: 1.125rem !important; }
+
+        /* Modo Alto Contraste (WCAG AAA Compliance) */
+        body.high-contrast {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+
+        body.high-contrast .bg-discord-bg,
+        body.high-contrast .bg-discord-sidebar,
+        body.high-contrast .bg-discord-servers,
+        body.high-contrast .bg-discord-chatInput {
+            background-color: #000000 !important;
+            border: 1px solid #ffffff !important;
+        }
+
+        body.high-contrast .text-discord-textMuted,
+        body.high-contrast .text-gray-400,
+        body.high-contrast time {
+            color: #ffff00 !important; /* Amarillo fluorescente para textos secundarios */
+            font-weight: bold !important;
+        }
+
+        body.high-contrast button,
+        body.high-contrast a,
+        body.high-contrast input {
+            border: 2px solid #ffffff !important;
+        }
+
+        body.high-contrast :focus-visible {
+            outline: 4px solid #00ffff !important;
+            outline-offset: 3px !important;
+        }
+
+        /* Modo Simplificado (Reducción Carga Cognitiva) */
+        body.simplified-mode .member-sidebar {
+            display: none !important;
+        }
+        body.simplified-mode .decorative-badge,
+        body.simplified-mode .status-indicator,
+        body.simplified-mode img {
+            display: none !important;
+        }
+        body.simplified-mode .channel-category {
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #ffffff !important;
+        }
+        body.simplified-mode article {
+            border-bottom: 1px solid #404249;
+            padding-bottom: 0.75rem;
+        }
+
+        /* --- ANIMACIONES Y ESTADOS DE PAUSA (EVIDENTE PARA PRUEBAS) --- */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(35, 165, 90, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(35, 165, 90, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(35, 165, 90, 0); }
+        }
+
+        @keyframes bounce-typing {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-6px); }
+        }
+
+        @keyframes spin-emoji {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.2); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        .animated-pulse-avatar {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+
+        .typing-dot {
+            display: inline-block;
+            animation: bounce-typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        .animated-spin-emoji {
+            display: inline-block;
+            animation: spin-emoji 3s infinite linear;
+        }
+
+        .pause-badge {
+            display: none;
+        }
+
+        /* Regla estricta al Pausar Animaciones */
+        body.pause-animations *,
+        body.pause-animations *::before,
+        body.pause-animations *::after {
+            animation-play-state: paused !important;
+            transition: none !important;
+        }
+
+        body.pause-animations .pause-badge {
+            display: inline-block !important;
+        }
+
+        /* Modo Lector de Pantalla (Visualización de orden DOM explícito) */
+        body.screen-reader-mode .sr-order-badge {
+            display: inline-flex !important;
+        }
+        body.screen-reader-mode #aria-log-panel {
+            display: block !important;
+        }
+        .sr-order-badge {
+            display: none;
+        }
+    </style>
+</head>
+<body class="h-full bg-discord-bg text-discord-text font-sans antialiased flex flex-col overflow-hidden" id="app-body">
+
+    <!-- BARRA SUPERIOR DE ACCESIBILIDAD CENTRALIZADA -->
+    <header role="banner" aria-label="Panel de Control de Accesibilidad Directo" class="bg-gray-900 text-white px-4 py-2 flex flex-wrap items-center justify-between border-b border-gray-700 shadow-md shrink-0 z-40">
+        <div class="flex items-center space-x-3 my-1">
+            <i class="fa-solid font-bold fa-universal-access text-discord-blurple text-2xl" aria-hidden="true"></i>
+            <div>
+                <h1 class="text-sm font-bold tracking-wide uppercase leading-tight">Discord Accesible</h1>
+                <p class="text-xs text-discord-textMuted">Trabajo Final Accesibilidad Web (WCAG 2.0 / 2.1 AA)</p>
+            </div>
+        </div>
+
+        <!-- Botones de Acción de Accesibilidad Directos -->
+        <nav aria-label="Controles rápidos de accesibilidad" class="flex flex-wrap items-center gap-2 my-1">
+            <!-- Selector de Tamaño de Fuente -->
+            <div class="flex items-center bg-gray-800 rounded-md border border-gray-600 p-0.5" role="group" aria-label="Ajuste de tamaño de texto">
+                <button onclick="setFontSize('normal')" id="btn-font-normal" aria-label="Tamaño de fuente Normal" class="px-2 py-1 text-xs font-bold rounded bg-discord-blurple text-white">A</button>
+                <button onclick="setFontSize('large')" id="btn-font-large" aria-label="Tamaño de fuente Grande" class="px-2 py-1 text-xs font-bold rounded hover:bg-gray-700 text-gray-300">A+</button>
+                <button onclick="setFontSize('xlarge')" id="btn-font-xlarge" aria-label="Tamaño de fuente Extra Grande" class="px-2 py-1 text-xs font-bold rounded hover:bg-gray-700 text-gray-300">A++</button>
+            </div>
+
+            <button id="btn-high-contrast" onclick="toggleHighContrast()" 
+                    aria-pressed="false"
+                    aria-label="Activar o desactivar modo alto contraste visual"
+                    class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 transition flex items-center space-x-1.5 focus:ring-2 focus:ring-yellow-400">
+                <i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i>
+                <span>Alto Contraste</span>
+            </button>
+
+            <button id="btn-screen-reader" onclick="toggleScreenReaderMode()" 
+                    aria-pressed="false"
+                    aria-label="Activar modo lector de pantalla para resaltar la estructura del DOM"
+                    class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 transition flex items-center space-x-1.5 focus:ring-2 focus:ring-yellow-400">
+                <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                <span>Modo Lector (DOM)</span>
+            </button>
+
+            <button id="btn-simplified" onclick="toggleSimplifiedMode()" 
+                    aria-pressed="false"
+                    aria-label="Activar modo simplificado para reducir la carga cognitiva"
+                    class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 transition flex items-center space-x-1.5 focus:ring-2 focus:ring-yellow-400">
+                <i class="fa-solid fa-feather text-green-400" aria-hidden="true"></i>
+                <span>Modo Simplificado</span>
+            </button>
+
+            <button id="btn-animations" onclick="toggleAnimations()" 
+                    aria-pressed="false"
+                    aria-label="Pausar o reanudar animaciones y avatares animados"
+                    class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 transition flex items-center space-x-1.5 focus:ring-2 focus:ring-yellow-400">
+                <i class="fa-solid fa-pause text-yellow-400" aria-hidden="true"></i>
+                <span>Pausar Animaciones</span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- INTERFAZ PRINCIPAL DE DISCORD (ESTRUCTURA DE 4 COLUMNAS) -->
+    <div class="flex-1 flex overflow-hidden">
+
+        <!-- 1. BARRA NAVEGACIÓN DE SERVIDORES -->
+        <nav role="navigation" aria-label="Lista de Servidores de Discord" class="w-18 bg-discord-servers flex flex-col items-center py-3 space-y-3 shrink-0 z-30">
+            <button aria-label="Inicio y Mensajes Directos" class="w-12 h-12 bg-discord-blurple hover:rounded-2xl rounded-3xl flex items-center justify-center text-white transition-all shadow-md group relative focus:ring-4 focus:ring-yellow-400">
+                <i class="fa-brands fa-discord text-2xl" aria-hidden="true"></i>
+            </button>
+
+            <div class="w-8 h-0.5 bg-gray-700 rounded" role="separator" aria-orientation="horizontal"></div>
+
+            <!-- Servidor Activo (Universidad Publica) -->
+            <button aria-label="Servidor Universidad Pública Argentina (Servidor Activo)" 
+                    aria-current="page"
+                    class="w-12 h-12 bg-discord-blurple rounded-2xl flex items-center justify-center text-white font-bold transition-all shadow-md relative group border-2 border-white">
+                <span>UPA</span>
+            </button>
+
+            <!-- Servidores Adicionales -->
+            <button aria-label="Servidor Grupo de Estudio Programación Web" class="w-12 h-12 bg-discord-sidebar hover:bg-discord-blurple rounded-3xl hover:rounded-2xl flex items-center justify-center text-gray-200 font-bold transition-all shadow-md">
+                <span>WEB</span>
+            </button>
+
+            <button aria-label="Servidor Comunidad de Accesibilidad WCAG" class="w-12 h-12 bg-discord-sidebar hover:bg-discord-blurple rounded-3xl hover:rounded-2xl flex items-center justify-center text-gray-200 font-bold transition-all shadow-md">
+                <span>A11Y</span>
+            </button>
+
+            <button aria-label="Añadir un nuevo servidor" class="w-12 h-12 bg-discord-sidebar hover:bg-discord-green text-discord-green hover:text-white rounded-3xl hover:rounded-2xl flex items-center justify-center transition-all">
+                <i class="fa-solid fa-plus text-xl" aria-hidden="true"></i>
+            </button>
+        </nav>
+
+        <!-- 2. NAVEGACIÓN DE CANALES Y VOZ -->
+        <nav role="navigation" aria-label="Canales del Servidor Universidad Pública Argentina" class="w-60 bg-discord-sidebar flex flex-col shrink-0 border-r border-gray-800">
+            <!-- Header del Servidor -->
+            <button id="server-menu-button" aria-expanded="false" aria-haspopup="menu" aria-label="Menú de opciones del Servidor Universidad Pública Argentina" class="h-12 px-4 flex items-center justify-between font-bold text-white shadow-sm border-b border-gray-800 hover:bg-discord-channelHover transition">
+                <span class="truncate">Univ. Pública Arg.</span>
+                <i class="fa-solid fa-chevron-down text-xs" aria-hidden="true"></i>
+            </button>
+
+            <!-- Lista de Canales con Marcado Semántico -->
+            <div class="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+                <!-- Categoría: TEXTO -->
+                <div>
+                    <button onclick="toggleCategory('text-channels-list', 'btn-text-cat')"
+                            id="btn-text-cat"
+                            aria-expanded="true" 
+                            aria-controls="text-channels-list" 
+                            class="w-full channel-category px-2 mb-1 text-xs font-bold text-discord-textMuted tracking-wider flex items-center space-x-1 text-left hover:text-white">
+                        <i class="fa-solid fa-chevron-down text-[10px] transition-transform" id="icon-text-cat" aria-hidden="true"></i>
+                        <span>CANALES DE TEXTO</span>
+                    </button>
+                    <ul id="text-channels-list" class="space-y-0.5" role="list">
+                        <li>
+                            <a href="#general" aria-current="page" class="flex items-center space-x-2 px-2 py-1.5 rounded text-white bg-discord-channelHover font-medium focus:ring-2 focus:ring-yellow-400">
+                                <i class="fa-solid fa-hashtag text-gray-400" aria-hidden="true"></i>
+                                <span>general</span>
+                                <span class="sr-only">(Canal de texto activo)</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#anuncios" class="flex items-center space-x-2 px-2 py-1.5 rounded text-discord-textMuted hover:bg-discord-channelHover hover:text-gray-200 font-medium transition">
+                                <i class="fa-solid fa-bullhorn text-gray-400" aria-hidden="true"></i>
+                                <span>anuncios-ley-26653</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#consultas" class="flex items-center space-x-2 px-2 py-1.5 rounded text-discord-textMuted hover:bg-discord-channelHover hover:text-gray-200 font-medium transition">
+                                <i class="fa-solid fa-hashtag text-gray-400" aria-hidden="true"></i>
+                                <span>consultas-wcag</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Categoría: CANALES DE VOZ -->
+                <div>
+                    <button onclick="toggleCategory('voice-channels-list', 'btn-voice-cat')"
+                            id="btn-voice-cat"
+                            aria-expanded="true" 
+                            aria-controls="voice-channels-list" 
+                            class="w-full channel-category px-2 mb-1 text-xs font-bold text-discord-textMuted tracking-wider flex items-center space-x-1 text-left hover:text-white">
+                        <i class="fa-solid fa-chevron-down text-[10px] transition-transform" id="icon-voice-cat" aria-hidden="true"></i>
+                        <span>CANALES DE VOZ</span>
+                    </button>
+                    <ul id="voice-channels-list" class="space-y-0.5" role="list">
+                        <li>
+                            <button aria-label="Unirse al canal de voz Aula Virtual A. 2 miembros conectados." class="w-full flex items-center justify-between px-2 py-1.5 rounded text-discord-textMuted hover:bg-discord-channelHover hover:text-gray-200 font-medium transition text-left">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fa-solid fa-volume-high text-gray-400" aria-hidden="true"></i>
+                                    <span>Aula Virtual A</span>
+                                </div>
+                                <span class="text-xs bg-gray-700 text-gray-200 px-1.5 py-0.5 rounded-full" aria-hidden="true">2</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- PERFIL DE USUARIO EN LA PARTE INFERIOR DE CANALES -->
+            <div class="h-14 bg-gray-950 px-2 flex items-center justify-between border-t border-gray-800">
+                <div class="flex items-center space-x-2 truncate">
+                    <div class="relative">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
+                             alt="Avatar de usuario de Tobías Chamorro" 
+                             class="w-8 h-8 rounded-full object-cover">
+                        <span class="status-indicator absolute bottom-0 right-0 w-2.5 h-2.5 bg-discord-green rounded-full border-2 border-gray-950" 
+                              aria-label="Estado: En línea"></span>
+                    </div>
+                    <div class="truncate leading-tight">
+                        <div class="text-xs font-bold text-white truncate">Tobías Chamorro</div>
+                        <div class="text-[10px] text-discord-textMuted truncate">#WCAG2026</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <button aria-label="Silenciar micrófono" class="p-1.5 text-gray-400 hover:text-white rounded hover:bg-discord-channelHover">
+                        <i class="fa-solid fa-microphone" aria-hidden="true"></i>
+                    </button>
+                    <button aria-label="Ajustes de usuario de Accesibilidad" class="p-1.5 text-gray-400 hover:text-white rounded hover:bg-discord-channelHover">
+                        <i class="fa-solid fa-gear" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 3. ÁREA DE CHAT PRINCIPAL -->
+        <main role="main" aria-label="Chat del canal general" class="flex-1 flex flex-col bg-discord-bg overflow-hidden relative">
+
+            <!-- BARRA SUPERIOR DEL CANAL -->
+            <header class="h-12 border-b border-gray-800 px-4 flex items-center justify-between shrink-0 shadow-sm">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-hashtag text-gray-400 text-lg" aria-hidden="true"></i>
+                    <h2 class="font-bold text-white text-md">general</h2>
+                    <span class="text-gray-700" aria-hidden="true">|</span>
+                    <span class="text-xs text-discord-textMuted truncate hidden sm:inline">Discusión sobre Pautas de Accesibilidad Web (Ley 26.653)</span>
+                </div>
+            </header>
+
+            <!-- SIMULADOR VISUAL DE ARIA-LIVE LOG (SOLO VISIBLE EN MODO LECTOR DE PANTALLA) -->
+            <div id="aria-log-panel" class="hidden bg-blue-950 border-b border-blue-700 text-blue-200 text-xs px-4 py-1.5 flex items-center space-x-2 shrink-0">
+                <i class="fa-solid fa-headset text-yellow-400" aria-hidden="true"></i>
+                <span class="font-bold uppercase tracking-wider text-[10px] bg-blue-800 px-1 rounded">Simulador ARIA Live:</span>
+                <span id="aria-log-text" class="italic truncate">Listo para emitir notificaciones para lectores de pantalla.</span>
+            </div>
+
+            <!-- MENSAJES DE CHAT RESTRUCTURADOS PARA LECTORES DE PANTALLA -->
+            <!-- WCAG: Estructura lógica estricta con <article>, <header>, <div> y <time> -->
+            <div id="chat-messages" role="region" aria-live="polite" aria-label="Historial de mensajes de chat" class="flex-1 overflow-y-auto p-4 space-y-4">
+
+                <!-- Notificación explicativa de Accesibilidad -->
+                <div class="p-3 bg-discord-blurple/10 border border-discord-blurple/40 rounded-lg text-xs text-discord-text flex items-start space-x-3">
+                    <i class="fa-solid fa-circle-info text-discord-blurple text-base mt-0.5" aria-hidden="true"></i>
+                    <div>
+                        <strong class="font-bold text-white block">Optimización WCAG 2.0 / 2.1 AA Aplicada:</strong>
+                        Los mensajes del chat utilizan una estructura semántica limpia (`<article>`, `<header>`, `<time>`). El orden de lectura en el DOM garantiza que NVDA o JAWS anuncien: <em>1. Remitente → 2. Mensaje → 3. Hora de envío</em>.
+                    </div>
+                </div>
+
+                <!-- Mensaje 1 -->
+            <article class="chat-message flex items-start space-x-3 group hover:bg-black/10 p-1.5 rounded-md transition" aria-label="Mensaje de María Inés Laitano">
+                <div class="relative shrink-0">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" 
+                         alt="Foto de perfil de María Inés Laitano" 
+                         class="animated-avatar animated-pulse-avatar w-10 h-10 rounded-full object-cover mt-0.5">
+                    <span class="pause-badge absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-bold px-1 rounded shadow">PAUSADO</span>
+                </div>
+                
+                <div class="flex-1 min-w-0">
+                    <!-- Header con Remitente -->
+                    <header class="flex items-baseline space-x-2">
+                        <span class="sr-order-badge bg-blue-600 text-white text-[10px] px-1 rounded font-mono mr-1">1. Remitente</span>
+                        <span class="font-semibold text-white text-sm hover:underline cursor-pointer">Prof. María Inés Laitano</span>
+                        
+                        <span class="decorative-badge bg-discord-blurple text-white text-[10px] font-bold px-1.5 py-0.2 rounded" aria-label="Rol: Docente">DOCENTE</span>
+                        <span class="animated-spin-emoji text-base" aria-label="Emoji animado de fuego">🔥</span>
+                        <span class="pause-badge bg-red-800 text-white text-[10px] px-1 rounded font-mono">[GIRO PAUSADO]</span>
+                    </header>
+
+                    <!-- Mensaje Principal -->
+                    <div class="mt-1 text-sm text-discord-text leading-relaxed">
+                        <span class="sr-order-badge bg-green-600 text-white text-[10px] px-1 rounded font-mono block w-fit my-0.5">2. Contenido Mensaje</span>
+                        Recuerden que la accesibilidad no beneficia únicamente a personas con discapacidad permanente, sino que garantiza el derecho a la educación pública y la participación en igualdad de condiciones según la Ley 26.653.
+                    </div>
+
+                    <!-- Footer / Marca de tiempo -->
+                    <div class="mt-0.5">
+                        <span class="sr-order-badge bg-purple-600 text-white text-[10px] px-1 rounded font-mono mr-1">3. Hora</span>
+                        <time datetime="2026-11-04T10:15" aria-label="Enviado a las 10:15 AM" class="text-xs text-discord-textMuted font-medium">10:15 AM</time>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Mensaje 2 -->
+            <article class="chat-message flex items-start space-x-3 group hover:bg-black/10 p-1.5 rounded-md transition" aria-label="Mensaje de Tobías Chamorro">
+                <div class="relative shrink-0">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
+                         alt="Foto de perfil de Tobías Chamorro" 
+                         class="animated-avatar animated-pulse-avatar w-10 h-10 rounded-full object-cover mt-0.5 border-2 border-discord-blurple">
+                    <span class="pause-badge absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-bold px-1 rounded shadow">PAUSADO</span>
+                </div>
+                
+                <div class="flex-1 min-w-0">
+                    <header class="flex items-baseline space-x-2">
+                        <span class="sr-order-badge bg-blue-600 text-white text-[10px] px-1 rounded font-mono mr-1">1. Remitente</span>
+                        <span class="font-semibold text-discord-blurple text-sm hover:underline cursor-pointer">Tobías Chamorro</span>
+                    </header>
+
+                    <div class="mt-1 text-sm text-discord-text leading-relaxed">
+                        <span class="sr-order-badge bg-green-600 text-white text-[10px] px-1 rounded font-mono block w-fit my-0.5">2. Contenido Mensaje</span>
+                        ¡Exacto Profesora! En la propuesta de rediseño corregimos las 4 capas WCAG:
+                        <ul class="list-disc list-inside mt-1.5 space-y-1 text-discord-text font-medium">
+                            <li><strong>Robustez:</strong> Código HTML semántico y atributos ARIA completos.</li>
+                            <li><strong>Perceptibilidad:</strong> Mayor contraste en horas y avatares con alt descriptivo.</li>
+                            <li><strong>Operabilidad:</strong> Indicador de foco visible por teclado de 3px y pausa de animaciones.</li>
+                            <li><strong>Comprensibilidad:</strong> Modo simplificado para reducir la saturación de la interfaz.</li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-0.5">
+                        <span class="sr-order-badge bg-purple-600 text-white text-[10px] px-1 rounded font-mono mr-1">3. Hora</span>
+                        <time datetime="2026-11-04T10:18" aria-label="Enviado a las 10:18 AM" class="text-xs text-discord-textMuted font-medium">10:18 AM</time>
+                    </div>
+                </div>
+            </article>
+        </div>
+
+        <!-- INDICADOR ACCESIBLE DE "ESCRIBIENDO..." -->
+        <div class="px-4 py-1 text-xs text-discord-textMuted flex items-center space-x-2 bg-discord-bg border-t border-gray-800 shrink-0">
+            <span class="font-medium text-gray-300">María I. Laitano está escribiendo</span>
+            <span class="inline-flex space-x-1" aria-hidden="true">
+                <span class="typing-dot w-1.5 h-1.5 bg-discord-blurple rounded-full"></span>
+                <span class="typing-dot w-1.5 h-1.5 bg-discord-blurple rounded-full"></span>
+                <span class="typing-dot w-1.5 h-1.5 bg-discord-blurple rounded-full"></span>
+            </span>
+            <span class="pause-badge text-[10px] font-bold text-red-400 border border-red-500/40 px-1 rounded bg-red-950/40">[REBOTES PAUSADOS]</span>
+        </div>
+
+        <!-- ENTRADA DE TEXTO Y CHAT ACCESIBLE -->
+        <div class="p-4 bg-discord-bg shrink-0">
+                <form id="chat-form" onsubmit="handleSendMessage(event)" class="bg-discord-chatInput rounded-lg px-4 py-2.5 flex items-center space-x-3 border border-gray-700 focus-within:border-discord-blurple">
+                    <button type="button" aria-label="Adjuntar archivo o documento al chat" class="text-discord-textMuted hover:text-white transition">
+                        <i class="fa-solid fa-circle-plus text-lg" aria-hidden="true"></i>
+                    </button>
+                    
+                    <label for="message-input" class="sr-only">Escribir un mensaje para el canal general</label>
+                    <input type="text" id="message-input" 
+                           placeholder="Enviar mensaje a #general (Presiona Enter para enviar)" 
+                           class="bg-transparent text-white text-sm focus:outline-none w-full placeholder-discord-textMuted font-medium">
+                    
+                    <button type="submit" aria-label="Enviar mensaje redactado" class="bg-discord-blurple text-white px-3 py-1 rounded-md hover:bg-blue-600 transition text-xs font-semibold flex items-center space-x-1">
+                        <span>Enviar</span>
+                        <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                    </button>
+                </form>
+            </div>
+        </main>
+
+        <!-- 4. LISTA DE MIEMBROS (ADAPTABILE / OCULTABLE EN MODO SIMPLIFICADO) -->
+        <aside role="complementary" aria-label="Lista de miembros del servidor" class="member-sidebar w-60 bg-discord-sidebar flex flex-col shrink-0 border-l border-gray-800 hidden md:flex">
+            <div class="p-4 overflow-y-auto space-y-4">
+                <!-- Miembros En Línea -->
+                <div>
+                    <h3 class="text-xs font-bold text-discord-textMuted tracking-wider mb-2">
+                        EN LÍNEA — 2
+                    </h3>
+                    <ul class="space-y-1" role="list">
+                        <li>
+                            <button aria-label="Perfil de María Inés Laitano. Estado: En Línea." class="w-full flex items-center space-x-3 p-1.5 rounded hover:bg-discord-channelHover transition text-left">
+                                <div class="relative">
+                                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" 
+                                         alt="Avatar de María Inés Laitano" class="w-8 h-8 rounded-full object-cover">
+                                    <span class="status-indicator absolute bottom-0 right-0 w-2.5 h-2.5 bg-discord-green rounded-full border-2 border-discord-sidebar" aria-hidden="true"></span>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-semibold text-white leading-tight">María I. Laitano</div>
+                                    <div class="text-[10px] text-discord-textMuted">Docente Accesibilidad</div>
+                                </div>
+                            </button>
+                        </li>
+                        <li>
+                            <button aria-label="Perfil de Tobías Chamorro. Estado: En Línea." class="w-full flex items-center space-x-3 p-1.5 rounded hover:bg-discord-channelHover transition text-left">
+                                <div class="relative">
+                                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
+                                         alt="Avatar de Tobías Chamorro" class="w-8 h-8 rounded-full object-cover">
+                                    <span class="status-indicator absolute bottom-0 right-0 w-2.5 h-2.5 bg-discord-green rounded-full border-2 border-discord-sidebar" aria-hidden="true"></span>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-semibold text-discord-blurple leading-tight">Tobías Chamorro</div>
+                                    <div class="text-[10px] text-discord-textMuted">Estudiante / Autor</div>
+                                </div>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- NOTIFICACIÓN EN VIVO (ARIA LIVE ANNOUNCER) -->
+    <div id="aria-announcer" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+    <!-- SCRIPT DE LOGICA DE INTERACCIÓN Y ACCESIBILIDAD -->
+    <script>
+        function announceToScreenReader(message) {
+            const announcer = document.getElementById('aria-announcer');
+            announcer.textContent = message;
+
+            // Actualizar simulador visual de aria-live
+            const logText = document.getElementById('aria-log-text');
+            if (logText) {
+                logText.textContent = `"${message}"`;
+            }
+        }
+
+        function setFontSize(size) {
+            const body = document.getElementById('app-body');
+            body.classList.remove('font-large', 'font-xlarge');
+
+            document.getElementById('btn-font-normal').className = "px-2 py-1 text-xs font-bold rounded hover:bg-gray-700 text-gray-300";
+            document.getElementById('btn-font-large').className = "px-2 py-1 text-xs font-bold rounded hover:bg-gray-700 text-gray-300";
+            document.getElementById('btn-font-xlarge').className = "px-2 py-1 text-xs font-bold rounded hover:bg-gray-700 text-gray-300";
+
+            if (size === 'large') {
+                body.classList.add('font-large');
+                document.getElementById('btn-font-large').className = "px-2 py-1 text-xs font-bold rounded bg-discord-blurple text-white";
+                announceToScreenReader("Tamaño de texto ajustado a Grande");
+            } else if (size === 'xlarge') {
+                body.classList.add('font-xlarge');
+                document.getElementById('btn-font-xlarge').className = "px-2 py-1 text-xs font-bold rounded bg-discord-blurple text-white";
+                announceToScreenReader("Tamaño de texto ajustado a Extra Grande");
+            } else {
+                document.getElementById('btn-font-normal').className = "px-2 py-1 text-xs font-bold rounded bg-discord-blurple text-white";
+                announceToScreenReader("Tamaño de texto ajustado a Normal");
+            }
+        }
+
+        function toggleCategory(listId, btnId) {
+            const list = document.getElementById(listId);
+            const btn = document.getElementById(btnId);
+            const icon = btn.querySelector('.fa-chevron-down');
+
+            const isExpanded = btn.getAttribute('aria-expanded') === 'true';
+            btn.setAttribute('aria-expanded', !isExpanded);
+            
+            if (isExpanded) {
+                list.classList.add('hidden');
+                if (icon) icon.style.transform = 'rotate(-90deg)';
+                announceToScreenReader(`Categoría contraída`);
+            } else {
+                list.classList.remove('hidden');
+                if (icon) icon.style.transform = 'rotate(0deg)';
+                announceToScreenReader(`Categoría expandida`);
+            }
+        }
+
+        function toggleHighContrast() {
+            const body = document.getElementById('app-body');
+            const btn = document.getElementById('btn-high-contrast');
+            const isEnabled = body.classList.toggle('high-contrast');
+            
+            btn.setAttribute('aria-pressed', isEnabled);
+            btn.classList.toggle('bg-yellow-500', isEnabled);
+            btn.classList.toggle('text-black', isEnabled);
+
+            announceToScreenReader(isEnabled ? "Modo alto contraste activado" : "Modo alto contraste desactivado");
+        }
+
+        function toggleScreenReaderMode() {
+            const body = document.getElementById('app-body');
+            const btn = document.getElementById('btn-screen-reader');
+            const isEnabled = body.classList.toggle('screen-reader-mode');
+            
+            btn.setAttribute('aria-pressed', isEnabled);
+            btn.classList.toggle('bg-blue-600', isEnabled);
+
+            announceToScreenReader(isEnabled ? "Modo lector de pantalla activado con resalte de orden DOM" : "Modo lector de pantalla desactivado");
+        }
+
+        function toggleSimplifiedMode() {
+            const body = document.getElementById('app-body');
+            const btn = document.getElementById('btn-simplified');
+            const isEnabled = body.classList.toggle('simplified-mode');
+            
+            btn.setAttribute('aria-pressed', isEnabled);
+            btn.classList.toggle('bg-green-600', isEnabled);
+
+            announceToScreenReader(isEnabled ? "Modo simplificado activado. Ocultados elementos decorativos y paneles secundarios para reducir la carga cognitiva." : "Modo simplificado desactivado.");
+        }
+
+        function toggleAnimations() {
+            const body = document.getElementById('app-body');
+            const btn = document.getElementById('btn-animations');
+            const isEnabled = body.classList.toggle('pause-animations');
+            
+            btn.setAttribute('aria-pressed', isEnabled);
+            btn.classList.toggle('bg-red-600', isEnabled);
+
+            announceToScreenReader(isEnabled ? "Animaciones y gifs pausados" : "Animaciones activadas");
+        }
+
+        function handleSendMessage(event) {
+            event.preventDefault();
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+
+            if (!text) return;
+
+            const chatContainer = document.getElementById('chat-messages');
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Crear mensaje dinámico manteniendo el orden DOM Accesible (<article>, <header>, <div>, <time>)
+            const article = document.createElement('article');
+            article.className = "chat-message flex items-start space-x-3 group hover:bg-black/10 p-1.5 rounded-md transition";
+            article.setAttribute('aria-label', `Mensaje de Tobías Chamorro enviado a las ${timeString}`);
+            article.innerHTML = `
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
+                     alt="Foto de perfil de Tobías Chamorro" 
+                     class="animated-avatar w-10 h-10 rounded-full object-cover shrink-0 mt-0.5 border-2 border-discord-blurple">
+                <div class="flex-1 min-w-0">
+                    <header class="flex items-baseline space-x-2">
+                        <span class="sr-order-badge bg-blue-600 text-white text-[10px] px-1 rounded font-mono mr-1">1. Remitente</span>
+                        <span class="font-semibold text-discord-blurple text-sm hover:underline cursor-pointer">Tobías Chamorro</span>
+                    </header>
+                    <div class="mt-1 text-sm text-discord-text leading-relaxed">
+                        <span class="sr-order-badge bg-green-600 text-white text-[10px] px-1 rounded font-mono block w-fit my-0.5">2. Contenido Mensaje</span>
+                        ${escapeHTML(text)}
+                    </div>
+                    <div class="mt-0.5">
+                        <span class="sr-order-badge bg-purple-600 text-white text-[10px] px-1 rounded font-mono mr-1">3. Hora</span>
+                        <time datetime="${now.toISOString()}" aria-label="Enviado a las ${timeString}" class="text-xs text-discord-textMuted font-medium">${timeString}</time>
+                    </div>
+                </div>
+            `;
+
+            chatContainer.appendChild(article);
+            input.value = '';
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            announceToScreenReader(`Nuevo mensaje de Tobías Chamorro: ${text}`);
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
